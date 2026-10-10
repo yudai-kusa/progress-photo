@@ -162,7 +162,7 @@ function banner(title, text, onClose, action) {
   return el;
 }
 
-// カメラ / アルバムの選択。iOS で確実にファイル選択を開くため <label> で <input> を包む
+// アプリ内カメラ / アルバムの選択。ファイル選択を確実に開くため <label> で <input> を包む
 function openAddSheet() {
   let close;
   const onFiles = async (e) => {
@@ -173,13 +173,11 @@ function openAddSheet() {
     await startDraft(files);
     navigate('#/add');
   };
-  const pick = (label, iconName, capture) => h('label', { class: 'sheet-btn' },
-    icon(iconName), label,
-    h('input', { type: 'file', accept: 'image/*', hidden: true, multiple: !capture, capture: capture ? 'environment' : null, onchange: onFiles }));
   close = sheet([
     h('p', { class: 'sheet-title' }, '写真を追加'),
-    pick('カメラで撮る', 'camera', true),
-    pick('アルバムから選ぶ', 'image', false),
+    h('button', { class: 'sheet-btn', onclick: () => { close(); navigate('#/camera'); } }, icon('camera'), 'ガイド付きで撮影'),
+    h('label', { class: 'sheet-btn' }, icon('image'), 'アルバムから選ぶ',
+      h('input', { type: 'file', accept: 'image/*', hidden: true, multiple: true, onchange: onFiles })),
   ]);
 }
 

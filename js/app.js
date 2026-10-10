@@ -8,15 +8,17 @@ import * as editor from './views/editor.js';
 import * as compare from './views/compare.js';
 import * as tags from './views/tags.js';
 import * as settings from './views/settings.js';
+import * as camera from './views/camera.js';
 
 // #/            一覧
 // #/photo/<id>  写真の詳細
 // #/add         追加(選んだ写真は state.draft に入っている)
 // #/edit/<id>   日付・タグの編集
 // #/compare/<id> 比較(id が固定写真)
+// #/camera      アプリ内カメラ(撮影ガイド付き)
 // #/tags        タグ管理
 // #/settings    設定・バックアップ
-const views = { '': list, photo, add: editor, edit: editor, compare, tags, settings };
+const views = { '': list, photo, add: editor, edit: editor, compare, tags, settings, camera };
 
 const root = document.getElementById('app');
 let cleanup = null;

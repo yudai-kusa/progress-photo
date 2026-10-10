@@ -364,6 +364,137 @@ input[type="date"].input { -webkit-appearance: none; appearance: none; }
   z-index: 1;
 }
 
+/* ---------- カメラ ---------- */
+.view-camera {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 !important;
+  background: #000;
+  overflow: hidden;
+}
+.cam-top {
+  flex: none;
+  display: grid;
+  gap: 4px;
+  padding: calc(var(--safe-top) + 4px) 8px 6px 4px;
+  background: rgba(17, 19, 24, .95);
+}
+.cam-top-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.cam-top-sub { padding-left: 8px; justify-content: space-between; }
+.cam-tags { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.cam-tag-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cam-tag-row .filter-label { width: 44px; }
+.cam-tag-row .chips { flex: 1; min-width: 0; }
+.cam-tag-row .chip { min-height: 34px; padding: 4px 13px; font-size: 14px; }
+.cam-overlay-info { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 13px; color: var(--muted); }
+.cam-overlay-info > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cam-top-sub .chip { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.cam-top-sub .chip .icon { width: 16px; height: 16px; }
+
+.cam-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; }
+.cam-frame { position: relative; overflow: hidden; background: #111; }
+.cam-video, .cam-overlay { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cam-overlay { pointer-events: none; transition: opacity .15s; }
+.cam-status {
+  position: absolute;
+  inset: auto 16px 50% 16px;
+  transform: translateY(50%);
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, .7);
+  text-align: center;
+  font-size: 14px;
+}
+.cam-status:empty, .cam-status[hidden] { display: none; }
+.cam-countdown {
+  position: absolute;
+  font-size: 120px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, .6);
+  pointer-events: none;
+}
+.cam-countdown.flipped { transform: rotate(180deg); }
+.cam-stage::after { content: ''; position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.cam-stage.flash::after { animation: flash .35s ease-out; }
+@keyframes flash { from { opacity: .8; } to { opacity: 0; } }
+
+.cam-controls {
+  flex: none;
+  display: grid;
+  gap: 6px;
+  padding: 8px 12px calc(var(--safe-bottom) + 10px);
+  background: rgba(17, 19, 24, .95);
+}
+/* 逆さ撮りモード: スマホを逆さに持ったときに読めるよう操作部を180°回す */
+.cam-controls.flipped { transform: rotate(180deg); padding: calc(var(--safe-bottom) + 10px) 12px 8px; }
+.cam-row { display: flex; align-items: center; gap: 10px; }
+.cam-row input[type="range"] { flex: 1; height: 36px; accent-color: var(--accent); }
+.cam-row input[type="range"]:disabled { opacity: .35; }
+.cam-label { font-size: 13px; color: var(--muted); }
+.cam-row-main { justify-content: space-between; }
+.cam-small-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 72px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+.cam-small-btn.on { color: var(--accent); }
+.cam-row:first-child .cam-small-btn { flex-direction: row; min-width: 0; font-size: 13px; }
+.cam-small-btn .icon { width: 24px; height: 24px; }
+.cam-row:first-child .cam-small-btn .icon { width: 20px; height: 20px; }
+.cam-small-btn[hidden] { visibility: hidden; display: inline-flex; }
+.shutter {
+  width: 76px;
+  height: 76px;
+  border: 5px solid #fff;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, .4);
+}
+.shutter:active { transform: scale(.94); }
+.shutter.counting { background: var(--danger); }
+
+.cam-review {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+}
+.cam-review img { flex: 1; min-height: 0; width: 100%; object-fit: contain; padding-top: var(--safe-top); }
+.cam-review-bar {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px calc(var(--safe-bottom) + 16px);
+  background: var(--bg);
+}
+.cam-review-bar .btn { flex: 1; }
+.cam-error-page { padding: 48px 24px; display: grid; gap: 16px; justify-items: start; }
+
+.pick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  max-height: 50dvh;
+  overflow-y: auto;
+}
+.pick-grid .cell.on { outline: 3px solid var(--accent); outline-offset: -3px; }
+.pick-grid p { grid-column: 1 / -1; padding: 16px; text-align: center; }
+
 /* ---------- タグ管理 ---------- */
 .tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 4px; border-radius: 12px; background: var(--surface); }
 .tab { min-height: 40px; border: 0; border-radius: 9px; background: none; font-weight: 600; color: var(--muted); }

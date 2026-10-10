@@ -14,6 +14,11 @@ const P = {
   down: '<path d="M6 9l6 6 6-6"/>',
   sort: '<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>',
   share: '<path d="M12 3v12M7 8l5-5 5 5M5 13v7h14v-7"/>',
+  close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  rotate: '<path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6"/><path d="M4 4v4.6h4.6"/>',
+  layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
+  timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',
+  switchCam: '<path d="M3 8h4l2-3h6l2 3h4v11H3z"/><path d="M9 12.5a3 3 0 0 1 5.2-1.8M15 13.5a3 3 0 0 1-5.2 1.8"/><path d="M14.5 9v2h-2M9.5 17v-2h2"/>',
   download: '<path d="M12 4v12M7 11l5 5 5-5M5 20h14"/>',
 };
 
