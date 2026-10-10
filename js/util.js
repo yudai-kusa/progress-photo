@@ -44,6 +44,10 @@ export function isIOS() {
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
+export function isAndroid() {
+  return /Android/i.test(navigator.userAgent);
+}
+
 export function isStandalone() {
   return navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 }

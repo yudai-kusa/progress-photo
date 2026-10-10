@@ -1,5 +1,6 @@
 import { init } from './store.js';
 import { setRouter } from './nav.js';
+import './install.js';
 import { h } from './dom.js';
 import * as list from './views/list.js';
 import * as photo from './views/photo.js';

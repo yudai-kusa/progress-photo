@@ -4,7 +4,8 @@ import { icon } from '../icons.js';
 import { busy, choose, alertDialog, toast } from '../ui.js';
 import { state, getMeta, setMeta } from '../store.js';
 import { createBackup, backupFileName, inspectBackup, restoreBackup } from '../backup.js';
-import { formatBytes, isIOS, isStandalone } from '../util.js';
+import { formatBytes, isIOS, isAndroid, isStandalone } from '../util.js';
+import { canInstall, promptInstall } from '../install.js';
 import { topbar } from './common.js';
 
 export function render(root) {
@@ -83,7 +84,9 @@ export function render(root) {
       }, icon('download'), 'ファイルとして保存'),
       h('p', { class: 'muted small' }, isIOS()
         ? '「保存・共有する」→「\"ファイル\"に保存」で iCloud Drive などに保存できます。'
-        : 'Google ドライブなど、端末の外にも保存しておくと安心です。')));
+        : isAndroid()
+          ? '「ファイルとして保存」で端末の「ダウンロード」フォルダに保存されます。スマホの故障や紛失に備えて、Google ドライブにもアップロードしておくと安心です。'
+          : 'Google ドライブなど、端末の外にも保存しておくと安心です。')));
   };
 
   const fileInput = h('input', {
@@ -157,6 +160,12 @@ export function render(root) {
         storageInfo,
         isIOS() && !isStandalone()
           ? h('p', { class: 'warn small' }, 'いまは Safari で開いています。Safari とホーム画面のアプリでは保存場所が別なので、ホーム画面に追加したアプリで使ってください。')
+          : null,
+        !isIOS() && !isStandalone()
+          ? h('p', { class: 'muted small' }, 'ホーム画面に追加(インストール)すると、写真のデータがブラウザに自動削除されにくくなります。')
+          : null,
+        !isStandalone() && canInstall()
+          ? h('button', { class: 'btn btn-block', onclick: async () => { if (await promptInstall()) refreshStorage(); } }, 'アプリとしてインストール')
           : null),
       h('section', { class: 'card' },
         h('h2', {}, 'このアプリについて'),

@@ -6,7 +6,10 @@ import { sheet } from '../ui.js';
 import {
   state, tagsOf, tagName, sortPhotos, matchesFilter, saveFilter, thumbURL, getMeta, TAG_TYPES,
 } from '../store.js';
-import { formatDate, formatMonth, daysBetween, ymd, isIOS, isStandalone, loadPref, savePref, uid } from '../util.js';
+import {
+  formatDate, formatMonth, daysBetween, ymd, isIOS, isAndroid, isStandalone, loadPref, savePref, uid,
+} from '../util.js';
+import { canInstall, promptInstall, onInstallChange } from '../install.js';
 import { readExifDate } from '../image.js';
 import { iconButton } from './common.js';
 
@@ -86,6 +89,7 @@ export function render(root) {
   drawFilters();
   drawGrid();
   drawBanners(banners);
+  const offInstall = onInstallChange(() => drawBanners(banners));
 
   root.append(
     h('header', { class: 'topbar' },
@@ -101,13 +105,33 @@ export function render(root) {
 
   requestAnimationFrame(() => window.scrollTo(0, savedScroll));
   return () => {
+    offInstall();
     savedScroll = window.scrollY;
   };
 }
 
 async function drawBanners(box) {
   const items = [];
-  if (isIOS() && !isStandalone() && !loadPref('hideInstallTip', false)) {
+  const showInstallTip = !isStandalone() && !loadPref('hideInstallTip', false);
+  if (showInstallTip && canInstall()) {
+    items.push(banner(
+      'アプリとしてインストールできます',
+      'ホーム画面から全画面で起動でき、写真のデータもブラウザに自動削除されにくくなります。',
+      () => savePref('hideInstallTip', true),
+      {
+        label: 'インストール',
+        onclick: async () => {
+          if (!(await promptInstall())) return;
+          savePref('hideInstallTip', true);
+          drawBanners(box);
+        },
+      }));
+  } else if (showInstallTip && isAndroid()) {
+    items.push(banner(
+      'ホーム画面に追加して使うのがおすすめです',
+      'Chrome 右上のメニュー(⋮)→「ホーム画面に追加」または「アプリをインストール」。全画面で起動でき、データも自動削除されにくくなります。',
+      () => savePref('hideInstallTip', true)));
+  } else if (showInstallTip && isIOS()) {
     items.push(banner(
       'ホーム画面に追加して使ってください',
       'Safari の共有ボタン → 「ホーム画面に追加」。Safari とホーム画面のアプリでは保存場所が別なので、写真はホーム画面のアプリで追加してください。',
