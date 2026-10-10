@@ -26,3 +26,8 @@ export function home() {
   if (d > 0) history.go(-d);
   else navigate('#/', { replace: true });
 }
+
+// 画面はそのままで URL だけ置き換える(詳細画面でスワイプしたとき用)
+export function setHash(hash) {
+  history.replaceState({ depth: depth() }, '', hash);
+}

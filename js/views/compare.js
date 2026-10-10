@@ -2,9 +2,10 @@
 import { h } from '../dom.js';
 import { icon } from '../icons.js';
 import { navigate, home } from '../nav.js';
-import { state, getPhoto, getImageBlob, sortPhotos, matchesFilter, tagName, thumbURL } from '../store.js';
+import { state, getPhoto, sortPhotos, matchesFilter, tagName } from '../store.js';
+import { createSwiper } from '../swiper.js';
 import { formatDate, daysBetween, relativeLabel, loadPref, savePref } from '../util.js';
-import { topbar } from './common.js';
+import { topbar, lazyPhoto } from './common.js';
 
 // 固定を入れ替えた直後に、下段で元の固定写真を表示するため
 let focusId = null;
@@ -60,33 +61,8 @@ function caption(photo, sub) {
     h('div', { class: 'caption-sub' }, sub, tags ? h('span', { class: 'caption-tags' }, tags) : null));
 }
 
-// サムネイルを先に表示し、大きい画像を後から読み込む
-function photoImage(photo) {
-  const img = h('img', { src: thumbURL(photo), alt: '', decoding: 'async', draggable: 'false' });
-  let url = null;
-  let wanted = false;
-  return {
-    img,
-    async load() {
-      if (wanted) return;
-      wanted = true;
-      const blob = await getImageBlob(photo.id);
-      if (!wanted || !blob || url) return;
-      url = URL.createObjectURL(blob);
-      img.src = url;
-    },
-    unload() {
-      wanted = false;
-      if (!url) return;
-      img.src = thumbURL(photo);
-      URL.revokeObjectURL(url);
-      url = null;
-    },
-  };
-}
-
 function pinnedPane(pinned, cleanups) {
-  const pic = photoImage(pinned);
+  const pic = lazyPhoto(pinned);
   pic.load();
   cleanups.push(() => pic.unload());
   return h('section', { class: 'pane pane-pinned' },
@@ -105,71 +81,35 @@ function sliderPane(pinned, list, startIndex, cleanups) {
   }
 
   const counter = h('span', { class: 'counter' });
-  const pics = [];
-  const slides = list.map((p, i) => {
-    const pic = photoImage(p);
-    pics.push(pic);
-    const days = daysBetween(pinned.date, p.date);
-    return h('div', { class: 'slide', 'data-index': i },
-      pic.img,
-      h('button', {
-        class: 'pin-btn',
-        onclick: () => {
-          focusId = pinned.id;
-          navigate('#/compare/' + p.id, { replace: true });
-        },
-      }, icon('pin'), 'これを固定'),
-      caption(p, h('span', { class: 'rel' + (days > 0 ? ' plus' : days < 0 ? ' minus' : '') }, relativeLabel(days))));
+  const updateCounter = (i) => {
+    counter.textContent = `${i + 1} / ${list.length}`;
+  };
+  const swiper = createSwiper({
+    count: list.length,
+    index: startIndex,
+    renderSlide: (i) => {
+      const p = list[i];
+      const pic = lazyPhoto(p);
+      const days = daysBetween(pinned.date, p.date);
+      const el = h('div', { class: 'slide' },
+        pic.img,
+        h('button', {
+          class: 'pin-btn',
+          onclick: () => {
+            focusId = pinned.id;
+            navigate('#/compare/' + p.id, { replace: true });
+          },
+        }, icon('pin'), 'これを固定'),
+        caption(p, h('span', { class: 'rel' + (days > 0 ? ' plus' : days < 0 ? ' minus' : '') }, relativeLabel(days))));
+      return { el, load: pic.load, unload: pic.unload };
+    },
+    onChange: updateCounter,
   });
-  const track = h('div', { class: 'track' }, slides);
-
-  // 表示中の前後だけ大きい画像を読み込む(メモリ節約)
-  const io = new IntersectionObserver((entries) => {
-    for (const e of entries) {
-      const pic = pics[Number(e.target.dataset.index)];
-      if (e.isIntersecting) pic.load();
-      else pic.unload();
-    }
-  }, { root: track, rootMargin: '0px 100% 0px 100%' });
-  slides.forEach((s) => io.observe(s));
-
-  let index = startIndex;
-  const updateCounter = () => {
-    counter.textContent = `${index + 1} / ${list.length}`;
-  };
-  const onScroll = () => {
-    const i = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
-    if (i !== index && i >= 0 && i < list.length) {
-      index = i;
-      updateCounter();
-    }
-  };
-  const goTo = (i, smooth) => {
-    index = Math.min(list.length - 1, Math.max(0, i));
-    track.scrollTo({ left: index * track.clientWidth, behavior: smooth ? 'smooth' : 'instant' });
-    updateCounter();
-  };
-  const onResize = () => goTo(index, false);
-  const onKey = (e) => {
-    if (e.key === 'ArrowLeft') goTo(index - 1, true);
-    if (e.key === 'ArrowRight') goTo(index + 1, true);
-  };
-
-  track.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', onResize);
-  window.addEventListener('keydown', onKey);
-  requestAnimationFrame(() => goTo(startIndex, false));
-  updateCounter();
-
-  cleanups.push(() => {
-    io.disconnect();
-    window.removeEventListener('resize', onResize);
-    window.removeEventListener('keydown', onKey);
-    pics.forEach((p) => p.unload());
-  });
+  updateCounter(startIndex);
+  cleanups.push(() => swiper.destroy());
 
   return h('section', { class: 'pane pane-slider' },
-    track,
+    swiper.el,
     counter,
     list.length > 1 ? h('p', { class: 'swipe-hint' }, '← スワイプで切り替え →') : null);
 }

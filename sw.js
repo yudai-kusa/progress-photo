@@ -1,6 +1,6 @@
 // オフラインで起動できるよう、アプリ本体(写真以外)をキャッシュする。
 // 起動時はキャッシュから即表示し、裏で最新版を取得して次回起動時に反映する。
-const CACHE = 'progress-photo-v2';
+const CACHE = 'progress-photo-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -15,6 +15,7 @@ const ASSETS = [
   './js/install.js',
   './js/nav.js',
   './js/store.js',
+  './js/swiper.js',
   './js/ui.js',
   './js/util.js',
   './js/views/common.js',

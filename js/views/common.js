@@ -2,6 +2,7 @@
 import { h } from '../dom.js';
 import { icon } from '../icons.js';
 import { back } from '../nav.js';
+import { getImageBlob, thumbURL } from '../store.js';
 
 export function topbar(title, { backTo, actions = [] } = {}) {
   return h('header', { class: 'topbar' },
@@ -45,4 +46,41 @@ export function blobImage(blob, attrs = {}) {
   const url = URL.createObjectURL(blob);
   const img = h('img', { src: url, alt: '', decoding: 'async', ...attrs });
   return { img, revoke: () => URL.revokeObjectURL(url) };
+}
+
+// サムネイルを先に表示し、大きい画像はデコードし終えてから差し替える(表示のカクつき防止)
+export function lazyPhoto(photo) {
+  const img = h('img', { src: thumbURL(photo), alt: '', decoding: 'async', draggable: 'false' });
+  let url = null;
+  let wanted = false;
+  return {
+    img,
+    async load() {
+      if (wanted) return;
+      wanted = true;
+      const blob = await getImageBlob(photo.id);
+      if (!wanted || !blob || url) return;
+      const next = URL.createObjectURL(blob);
+      const pre = new Image();
+      pre.src = next;
+      try {
+        await pre.decode();
+      } catch {
+        // デコードに失敗してもそのまま表示を試みる
+      }
+      if (!wanted || url) {
+        URL.revokeObjectURL(next);
+        return;
+      }
+      url = next;
+      img.src = url;
+    },
+    unload() {
+      wanted = false;
+      if (!url) return;
+      img.src = thumbURL(photo);
+      URL.revokeObjectURL(url);
+      url = null;
+    },
+  };
 }

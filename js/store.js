@@ -3,7 +3,7 @@ import * as db from './db.js';
 import { uid, loadPref, savePref } from './util.js';
 
 const DEFAULT_TAGS = {
-  part: ['胸', '背中', '脚', '肩', '腕'],
+  part: ['胸', '背中', '脚', '肩', '腕', '腹筋'],
   pose: ['正面', '横', '背面'],
 };
 
@@ -32,8 +32,23 @@ export async function init() {
       tx.objectStore('meta').put({ key: 'initialized', value: true });
     });
   }
+  await addTagOnce('addedAbsTag', 'part', '腹筋');
   await reload();
   cleanFilter();
+}
+
+// 後から増やした初期タグを、既存の利用者にも1回だけ追加する
+// (同じ名前が既にあれば追加しない。追加後に削除された場合は再追加しない)
+async function addTagOnce(metaKey, type, name) {
+  if (await db.get('meta', metaKey)) return;
+  const sameType = (await db.getAll('tags')).filter((t) => t.type === type);
+  const tag = sameType.some((t) => t.name === name)
+    ? null
+    : { id: uid(), type, name, order: Math.max(-1, ...sameType.map((t) => t.order)) + 1 };
+  await db.write(['tags', 'meta'], (tx) => {
+    if (tag) tx.objectStore('tags').put(tag);
+    tx.objectStore('meta').put({ key: metaKey, value: true });
+  });
 }
 
 export async function reload() {
