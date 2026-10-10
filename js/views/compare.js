@@ -40,7 +40,7 @@ export function render(root, { id }) {
     const list = candidates();
     const startIndex = Math.max(0, focusId ? list.findIndex((p) => p.id === focusId) : list.length - 1);
     focusId = null;
-    body.replaceChildren(pinnedPane(pinned, cleanups), sliderPane(pinned, list, startIndex, cleanups));
+    body.replaceChildren(pinnedPane(pinned, cleanups), ...[sliderPane(pinned, list, startIndex, cleanups)].flat());
   };
 
   root.append(
@@ -81,8 +81,10 @@ function sliderPane(pinned, list, startIndex, cleanups) {
   }
 
   const counter = h('span', { class: 'counter' });
+  const seek = list.length > 1 ? seekBar(pinned, list, startIndex, (i) => swiper.goTo(i, false, { loadDelay: 150 })) : null;
   const updateCounter = (i) => {
     counter.textContent = `${i + 1} / ${list.length}`;
+    seek?.set(i);
   };
   const swiper = createSwiper({
     count: list.length,
@@ -108,8 +110,34 @@ function sliderPane(pinned, list, startIndex, cleanups) {
   updateCounter(startIndex);
   cleanups.push(() => swiper.destroy());
 
-  return h('section', { class: 'pane pane-slider' },
+  const pane = h('section', { class: 'pane pane-slider' },
     swiper.el,
     counter,
     list.length > 1 ? h('p', { class: 'swipe-hint' }, '← スワイプで切り替え →') : null);
+  return seek ? [pane, seek.el] : pane;
+}
+
+// シークバー: つまみを動かすと写真が連続で切り替わる(日付順、左が古い)
+function seekBar(pinned, list, index, onSeek) {
+  const max = list.length - 1;
+  const range = h('input', {
+    type: 'range', min: '0', max: String(max), step: '1', value: String(index),
+    'aria-label': '写真を選ぶ',
+    oninput: () => onSeek(Number(range.value)),
+  });
+  // 固定写真の日付が、並びのどのあたりかを印で示す
+  const before = list.filter((p) => p.date < pinned.date || (p.date === pinned.date && p.createdAt < pinned.createdAt)).length;
+  const markPos = Math.min(100, Math.max(0, ((before - 0.5) / max) * 100));
+  const short = (d) => formatDate(d).slice(2);
+  return {
+    el: h('div', { class: 'seek' },
+      h('span', { class: 'seek-date' }, short(list[0].date)),
+      h('div', { class: 'seek-track' },
+        h('span', { class: 'seek-mark', style: `left:${markPos}%`, title: '固定写真の位置' }),
+        range),
+      h('span', { class: 'seek-date' }, short(list[max].date))),
+    set(i) {
+      range.value = String(i);
+    },
+  };
 }

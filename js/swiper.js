@@ -22,7 +22,8 @@ export function createSwiper({ count, index = 0, renderSlide, onChange, duration
     track.style.transform = `translate3d(calc(${-current * 100}% + ${dx}px), 0, 0)`;
   };
 
-  const sync = () => {
+  // 表示位置の前後のスライドを作り、離れたものを片付ける
+  const place = () => {
     for (const [i, s] of slides) {
       if (Math.abs(i - current) > KEEP) {
         s.unload?.();
@@ -38,6 +39,10 @@ export function createSwiper({ count, index = 0, renderSlide, onChange, duration
       track.append(s.el);
       slides.set(i, s);
     }
+  };
+
+  const sync = () => {
+    place();
     // 表示中の1枚を最優先で読む
     slides.get(current)?.load?.();
     for (let d = 1; d <= LOAD; d++) {
@@ -46,15 +51,17 @@ export function createSwiper({ count, index = 0, renderSlide, onChange, duration
     }
   };
 
-  const goTo = (i, animate = true) => {
+  // loadDelay: アニメーションなしで連続して飛ぶとき(シークバー)用。
+  //   止まってから大きい画像を読むまでの待ち時間
+  const goTo = (i, animate = true, { loadDelay = 0 } = {}) => {
     const target = clamp(i);
     const changed = target !== current;
     current = target;
-    if (!slides.has(current)) sync();
+    place();
     setX(0, animate);
     if (changed) onChange?.(current);
     clearTimeout(settleTimer);
-    settleTimer = setTimeout(sync, animate ? duration + 40 : 0);
+    settleTimer = setTimeout(sync, animate ? duration + 40 : loadDelay);
   };
 
   /* ---------- ドラッグ操作 ---------- */
