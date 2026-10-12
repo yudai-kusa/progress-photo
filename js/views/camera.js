@@ -10,7 +10,7 @@ import { state, sortPhotos, tagsOf, thumbURL } from '../store.js';
 import { formatDate, ymd, uid, loadPref, savePref } from '../util.js';
 import { tagChips, lazyPhoto } from './common.js';
 
-const TIMERS = [0, 3, 10];
+const TIMERS = [0, 3, 10, 20];
 // 縦向きで 3:4 になるよう 4:3 を希望する(実際の解像度は機種しだい)
 const VIDEO = { width: { ideal: 1920 }, height: { ideal: 1440 } };
 
