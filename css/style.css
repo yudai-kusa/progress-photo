@@ -285,6 +285,40 @@ input[type="date"].input { -webkit-appearance: none; appearance: none; }
 .pane { position: relative; flex: 1 1 0; min-height: 0; overflow: hidden; background: #000; }
 .pane img { width: 100%; height: 100%; object-fit: contain; display: block; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .pane-empty { display: grid; place-content: center; gap: 6px; padding: 24px; text-align: center; background: var(--surface); }
+.view-compare .topbar-actions { gap: 6px; }
+.chip.with-icon { display: inline-flex; align-items: center; gap: 4px; }
+.chip.with-icon .icon { width: 16px; height: 16px; }
+
+/* 並べる: 左がスワイプ、右が固定 */
+.compare-row { flex: 1; min-height: 0; display: flex; gap: 2px; }
+.compare-row .pane { min-width: 0; }
+.compare-row .caption { padding: 24px 8px 6px; }
+.compare-row .caption-date { font-size: 15px; }
+.compare-row .caption-sub { font-size: 12px; }
+.compare-row .caption-tags { font-size: 11px; }
+.compare-row .pin-badge, .compare-row .counter, .compare-row .pin-btn { top: 6px; padding: 3px 8px; font-size: 12px; }
+.compare-row .counter { left: 6px; }
+.compare-row .pin-badge { left: 6px; }
+.compare-row .pin-btn { right: 6px; min-height: 32px; }
+.compare-row .swipe-hint { top: auto; bottom: 64px; }
+
+/* 重ねる */
+.ov-stage { touch-action: none; cursor: grab; }
+.ov-stage img { position: absolute; inset: 0; }
+.ov-top { position: absolute; inset: 0; transform-origin: center; will-change: transform, opacity; pointer-events: none; }
+.ov-badge { max-width: calc(50% - 12px); white-space: nowrap; }
+.ov-cap-slot .caption-date::before { content: "重ねた写真 "; font-size: 13px; font-weight: 600; color: #c9ced6; }
+.ov-ctrl { flex: none; display: grid; gap: 0; padding: 4px 12px 0; background: var(--bg); }
+.ov-row { display: flex; align-items: center; gap: 10px; }
+.ov-label { flex: none; width: 44px; font-size: 13px; color: var(--muted); }
+.ov-row input { flex: 1; min-width: 0; height: 32px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.ov-val { flex: none; width: 48px; text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ov-actions { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.ov-actions .icon-btn { width: 38px; height: 38px; }
+.ov-next .icon { transform: scaleX(-1); }
+.ov-counter { flex: none; min-width: 52px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ov-hint { flex: 1; min-width: 0; font-size: 11px; color: var(--muted); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-actions .chip { flex: none; }
 
 
 .caption {
