@@ -1,6 +1,6 @@
 // オフラインで起動できるよう、アプリ本体(写真以外)をキャッシュする。
 // 起動時はキャッシュから即表示し、裏で最新版を取得して次回起動時に反映する。
-const CACHE = 'progress-photo-v10';
+const CACHE = 'progress-photo-v11';
 const ASSETS = [
   './',
   './index.html',
@@ -35,7 +35,11 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // GitHub Pages はファイルを10分間ブラウザにキャッシュさせるため、そのままだと
+  // 新しい版のキャッシュに古いファイルが入ることがある。必ずサーバーから取り直す
+  event.waitUntil(caches.open(CACHE)
+    .then((c) => c.addAll(ASSETS.map((url) => new Request(url, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
@@ -52,7 +56,7 @@ self.addEventListener('fetch', (event) => {
   const key = req.mode === 'navigate' ? './index.html' : req;
   event.respondWith(caches.open(CACHE).then(async (cache) => {
     const cached = await cache.match(key, { ignoreSearch: true });
-    const fresh = fetch(req).then((res) => {
+    const fresh = fetch(req.url, { cache: 'no-cache' }).then((res) => {
       if (res.ok) cache.put(key, res.clone());
       return res;
     });
