@@ -131,30 +131,42 @@ export function render(root) {
       `${AVG_DAYS}日平均を重ねる`);
   };
 
-  // 選んだ項目・期間の点(古い順)。avg はその日を含む直近7日間(暦日)の記録の平均。
-  // 期間の始めでも正しい平均になるよう、期間外の記録も使って計算する
-  const points = () => {
+  // 選んだ項目の全記録(古い順)。avg はその日を含む直近7日間(暦日)の記録の平均
+  const series = () => {
     const all = sortedBody().filter((r) => r[metric] != null);
-    if (!all.length) return [];
-    const days = PERIODS.find((p) => p.key === period).days;
-    const end = all[all.length - 1].date;
-    const out = [];
     let from = 0;
     let sum = 0;
-    all.forEach((r, i) => {
+    return all.map((r, i) => {
       sum += r[metric];
       while (daysBetween(all[from].date, r.date) >= AVG_DAYS) sum -= all[from++][metric];
-      if (daysBetween(r.date, end) < days) {
-        out.push({ date: r.date, value: r[metric], avg: Math.round((sum / (i - from + 1)) * 100) / 100 });
-      }
+      return { date: r.date, day: dayNum(r.date), value: r[metric], avg: Math.round((sum / (i - from + 1)) * 100) / 100 };
     });
-    return out;
+  };
+  const periodDays = () => PERIODS.find((p) => p.key === period).days;
+
+  // 表示する範囲(日の通し番号)。endDay が null なら最新の記録まで。
+  // 期間の長さは固定で、スワイプや矢印で end を動かして過去を見る
+  let endDay = null;
+  const windowOf = (all) => {
+    const first = all[0].day;
+    const last = all[all.length - 1].day;
+    const days = periodDays();
+    if (!Number.isFinite(days)) return { start: first, end: last, minEnd: last, maxEnd: last, days: last - first + 1 };
+    const minEnd = Math.min(last, first + days - 1);
+    const end = endDay == null ? last : Math.min(last, Math.max(minEnd, endDay));
+    return { start: end - days + 1, end, minEnd, maxEnd: last, days };
   };
 
-  const drawSummary = (pts) => {
+  const shortRange = (a, b) => {
+    const fa = formatDate(fromDayNum(a));
+    const fb = formatDate(fromDayNum(b));
+    return `${fa} 〜 ${fa.slice(0, 4) === fb.slice(0, 4) ? fb.slice(5) : fb}`;
+  };
+
+  const drawSummary = (pts, win) => {
     const m = metricOf(metric);
     if (!pts.length) {
-      summary.replaceChildren();
+      summary.replaceChildren(h('div', { class: 'muted small' }, 'この期間の記録はありません'));
       return;
     }
     const last = pts[pts.length - 1];
@@ -171,16 +183,94 @@ export function render(root) {
         : null);
   };
 
+  const nav = h('div', { class: 'chart-nav' });
+  const drawNav = (win) => {
+    const movable = win.minEnd < win.maxEnd;
+    if (!movable) {
+      nav.replaceChildren();
+      return;
+    }
+    const go = (end) => { endDay = end; drawChart(); };
+    nav.replaceChildren(
+      h('button', {
+        class: 'icon-btn small', 'aria-label': '前の期間', disabled: win.end <= win.minEnd,
+        onclick: () => go(win.end - win.days),
+      }, icon('back')),
+      h('div', { class: 'chart-nav-label' },
+        h('span', {}, shortRange(win.start, win.end)),
+        h('span', { class: 'muted' }, '左右にスワイプで移動')),
+      win.end < win.maxEnd
+        ? h('button', { class: 'link-btn', onclick: () => go(null) }, '最新')
+        : null,
+      h('button', {
+        class: 'icon-btn small chart-next', 'aria-label': '次の期間', disabled: win.end >= win.maxEnd,
+        onclick: () => go(win.end + win.days),
+      }, icon('back')));
+  };
+
+  let chart = null; // 描いたグラフ { showAt, hide, innerW, win }
   const drawChart = () => {
-    const pts = points();
-    drawSummary(pts);
-    if (!pts.length) {
+    const all = series();
+    if (!all.length) {
+      chart = null;
+      summary.replaceChildren();
+      nav.replaceChildren();
       chartBox.replaceChildren(h('div', { class: 'chart-empty muted small' },
         state.body.length ? `${metricOf(metric).label}の記録はまだありません` : 'まだ記録がありません。上のフォームから記録するとグラフが表示されます。'));
       return;
     }
-    chartBox.replaceChildren(lineChart(pts, metricOf(metric), chartBox.clientWidth || 320, { showAvg }));
+    const win = windowOf(all);
+    // 範囲外に出た値は戻しておく。最新まで戻したら、新しい記録にも追従する
+    endDay = win.end >= win.maxEnd ? null : win.end;
+    const inWin = all.filter((p) => p.day >= win.start && p.day <= win.end);
+    drawSummary(inWin, win);
+    drawNav(win);
+    chart = lineChart(all, inWin, win, metricOf(metric), chartBox.clientWidth || 320, { showAvg });
+    chartBox.replaceChildren(chart.el);
   };
+
+  // グラフの操作: 横にドラッグ(スワイプ)で期間を移動、タップで値を表示
+  let drag = null;
+  let raf = 0;
+  chartBox.addEventListener('pointerdown', (e) => {
+    if (!chart) return;
+    drag = { id: e.pointerId, x: e.clientX, end: chart.win.end, panning: false };
+  });
+  chartBox.addEventListener('pointermove', (e) => {
+    if (!chart) return;
+    if (!drag || drag.id !== e.pointerId) {
+      if (e.pointerType === 'mouse' && !e.buttons) chart.showAt(e.clientX);
+      return;
+    }
+    const { win } = chart;
+    const pannable = win.minEnd < win.maxEnd;
+    if (!pannable) {
+      chart.showAt(e.clientX); // 動かせないときは、なぞって値を見る
+      return;
+    }
+    const dx = e.clientX - drag.x;
+    if (!drag.panning) {
+      if (Math.abs(dx) < 8) return;
+      drag.panning = true;
+      chartBox.setPointerCapture?.(e.pointerId);
+      chartBox.classList.add('dragging');
+      chart.hide();
+    }
+    const next = Math.round(drag.end - (dx * win.days) / chart.innerW);
+    if (next === (endDay ?? win.maxEnd)) return;
+    endDay = next;
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(drawChart);
+  });
+  const endDrag = (e) => {
+    if (!drag || drag.id !== e.pointerId) return;
+    if (!drag.panning && e.type === 'pointerup') chart?.showAt(e.clientX);
+    drag = null;
+    chartBox.classList.remove('dragging');
+  };
+  chartBox.addEventListener('pointerup', endDrag);
+  chartBox.addEventListener('pointercancel', endDrag);
+  chartBox.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && !drag) chart?.hide(); });
 
   let historyLimit = 20;
   const drawHistory = () => {
@@ -237,6 +327,7 @@ export function render(root) {
         tabs,
         summary,
         chartBox,
+        nav,
         periodChips,
         avgToggle),
       h('section', { class: 'stack' },
@@ -257,7 +348,10 @@ export function render(root) {
     }
   });
   ro.observe(chartBox);
-  return () => ro.disconnect();
+  return () => {
+    ro.disconnect();
+    cancelAnimationFrame(raf);
+  };
 }
 
 /* ---------- 折れ線グラフ(SVG) ---------- */
@@ -318,21 +412,29 @@ function xTicks(start, end) {
   return out;
 }
 
-function lineChart(pts, metric, width, { showAvg = false } = {}) {
+// all: その項目の全記録 / inWin: 表示範囲内の記録 / win: 表示範囲
+function lineChart(all, inWin, win, metric, width, { showAvg = false } = {}) {
   const height = 220;
   const pad = { top: 14, right: 14, bottom: 26, left: 40 };
   const innerW = Math.max(40, width - pad.left - pad.right);
   const innerH = height - pad.top - pad.bottom;
 
-  const values = pts.map((p) => p.value).concat(showAvg ? pts.map((p) => p.avg) : []);
+  // 線が端まで続くよう、範囲のすぐ外の記録も1つずつ含めて描く(はみ出しは切り取る)
+  const i0 = all.findIndex((p) => p.day >= win.start);
+  let i1 = all.length - 1;
+  while (i1 >= 0 && all[i1].day > win.end) i1--;
+  const from = Math.max(0, (i0 < 0 ? all.length : i0) - 1);
+  const ext = all.slice(from, Math.min(all.length, i1 + 2));
+  const base = inWin.length ? inWin : ext;
+
+  const values = base.map((p) => p.value).concat(showAvg ? base.map((p) => p.avg) : []);
   const { ticks, lo, hi } = niceTicks(Math.min(...values), Math.max(...values));
-  let x0 = dayNum(pts[0].date);
-  let x1 = dayNum(pts[pts.length - 1].date);
+  let x0 = win.start;
+  let x1 = win.end;
   if (x0 === x1) {
     x0 -= 3;
     x1 += 3;
   }
-  const x = (d) => pad.left + ((dayNum(d) - x0) / (x1 - x0)) * innerW;
   const xn = (n) => pad.left + ((n - x0) / (x1 - x0)) * innerW;
   const y = (v) => pad.top + (1 - (v - lo) / (hi - lo)) * innerH;
 
@@ -358,30 +460,37 @@ function lineChart(pts, metric, width, { showAvg = false } = {}) {
     svg.append(s('text', { class: 'chart-axis', x: Math.min(tx, width - 17), y: height - 6, 'text-anchor': 'middle' }, document.createTextNode(t.label)));
   }
 
-  // 線と点
-  const d = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.date).toFixed(1)},${y(p.value).toFixed(1)}`).join('');
-  svg.append(s('path', { class: 'chart-line', d }));
-  const showDots = pts.length <= 60;
-  pts.forEach((p, i) => {
-    if (showDots || i === pts.length - 1) svg.append(s('circle', { class: 'chart-dot', cx: x(p.date), cy: y(p.value), r: 4 }));
+  // 線と点(描画範囲の外は切り取る)
+  const clipId = 'clip-' + Math.random().toString(36).slice(2);
+  svg.append(s('defs', {}, s('clipPath', { id: clipId },
+    s('rect', { x: pad.left - 6, y: 0, width: innerW + 12, height: pad.top + innerH + 6 }))));
+  const plot = s('g', { 'clip-path': `url(#${clipId})` });
+  svg.append(plot);
+  const path = (key) => ext.map((p, i) => `${i ? 'L' : 'M'}${xn(p.day).toFixed(1)},${y(p[key]).toFixed(1)}`).join('');
+  if (ext.length) plot.append(s('path', { class: 'chart-line', d: path('value') }));
+  const showDots = inWin.length <= 60;
+  inWin.forEach((p, i) => {
+    if (showDots || i === inWin.length - 1) plot.append(s('circle', { class: 'chart-dot', cx: xn(p.day), cy: y(p.value), r: 4 }));
   });
-  if (showAvg) {
-    const da = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.date).toFixed(1)},${y(p.avg).toFixed(1)}`).join('');
-    svg.append(s('path', { class: 'chart-avg', d: da }));
+  if (showAvg && ext.length) plot.append(s('path', { class: 'chart-avg', d: path('avg') }));
+  if (!inWin.length) {
+    svg.append(s('text', { class: 'chart-axis chart-none', x: pad.left + innerW / 2, y: pad.top + innerH / 2, 'text-anchor': 'middle' },
+      document.createTextNode('この期間の記録はありません')));
   }
 
-  // なぞると値を表示(十字線 + ツールチップ)
+  // タップ・なぞると値を表示(十字線 + ツールチップ)
   const cross = s('line', { class: 'chart-cross', y1: pad.top, y2: pad.top + innerH, visibility: 'hidden' });
   const focus = s('circle', { class: 'chart-focus', r: 5.5, visibility: 'hidden' });
   svg.append(cross, focus);
   const tip = h('div', { class: 'chart-tip', hidden: true });
 
-  const show = (clientX) => {
+  const showAt = (clientX) => {
+    if (!inWin.length) return;
     const rect = svg.getBoundingClientRect();
     const px = ((clientX - rect.left) / rect.width) * width;
-    let best = pts[0];
-    for (const p of pts) if (Math.abs(x(p.date) - px) < Math.abs(x(best.date) - px)) best = p;
-    const cx = x(best.date);
+    let best = inWin[0];
+    for (const p of inWin) if (Math.abs(xn(p.day) - px) < Math.abs(xn(best.day) - px)) best = p;
+    const cx = xn(best.day);
     const cy = y(best.value);
     cross.setAttribute('x1', cx);
     cross.setAttribute('x2', cx);
@@ -405,9 +514,6 @@ function lineChart(pts, metric, width, { showAvg = false } = {}) {
     focus.setAttribute('visibility', 'hidden');
     tip.hidden = true;
   };
-  svg.addEventListener('pointerdown', (e) => { svg.setPointerCapture?.(e.pointerId); show(e.clientX); });
-  svg.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' || e.buttons) show(e.clientX); });
-  svg.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hide(); });
 
   // 2本のときは凡例を出す(色だけに頼らない)
   const legend = showAvg
@@ -415,5 +521,5 @@ function lineChart(pts, metric, width, { showAvg = false } = {}) {
       h('span', {}, h('i', { class: 'lg-raw' }), '記録'),
       h('span', {}, h('i', { class: 'lg-avg' }), `${AVG_DAYS}日平均`))
     : null;
-  return h('div', {}, legend, h('div', { class: 'chart-wrap' }, svg, tip));
+  return { el: h('div', {}, legend, h('div', { class: 'chart-wrap' }, svg, tip)), showAt, hide, innerW, win };
 }
