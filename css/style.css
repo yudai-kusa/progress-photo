@@ -572,9 +572,16 @@ input[type="date"].input { -webkit-appearance: none; appearance: none; }
 .body-latest { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
 .body-unit { margin-left: 3px; font-size: 15px; font-weight: 600; color: var(--muted); }
 .body-diff { color: var(--text); font-variant-numeric: tabular-nums; }
-.chart { min-width: 0; }
+.chart { min-width: 0; touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: grab; }
+.chart.dragging { cursor: grabbing; }
+.chart-none { font-size: 13px; }
+.chart-nav { display: flex; align-items: center; gap: 4px; margin: -4px -6px 0; }
+.chart-nav:empty { display: none; }
+.chart-nav-label { flex: 1; min-width: 0; display: grid; text-align: center; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.3; }
+.chart-nav-label .muted { font-size: 11px; font-weight: 400; }
+.chart-next .icon { transform: scaleX(-1); }
 .chart-wrap { position: relative; }
-.chart-svg { display: block; width: 100%; height: auto; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.chart-svg { display: block; width: 100%; height: auto; }
 .chart-empty { display: grid; place-content: center; min-height: 160px; padding: 16px; text-align: center; }
 .chart-grid { stroke: var(--line); stroke-width: 1; }
 .chart-axis { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
