@@ -559,6 +559,47 @@ input[type="date"].input { -webkit-appearance: none; appearance: none; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; }
 
+/* ---------- 体重・体組成 ---------- */
+.body-inputs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.input-unit { position: relative; display: block; }
+.input-unit .input { padding-right: 30px; font-variant-numeric: tabular-nums; }
+.input-unit .unit { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; color: var(--muted); pointer-events: none; }
+.tabs-3 { grid-template-columns: repeat(3, 1fr); }
+.body-summary { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; min-height: 0; }
+.body-summary:empty { display: none; }
+.body-latest { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.body-unit { margin-left: 3px; font-size: 15px; font-weight: 600; color: var(--muted); }
+.body-diff { color: var(--text); font-variant-numeric: tabular-nums; }
+.chart { min-width: 0; }
+.chart-wrap { position: relative; }
+.chart-svg { display: block; width: 100%; height: auto; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.chart-empty { display: grid; place-content: center; min-height: 160px; padding: 16px; text-align: center; }
+.chart-grid { stroke: var(--line); stroke-width: 1; }
+.chart-axis { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart-dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+.chart-cross { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart-focus { fill: var(--accent); stroke: var(--text); stroke-width: 2; }
+.chart-tip {
+  position: absolute;
+  display: grid;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .35);
+}
+.chart-tip[hidden] { display: none; }
+.chart-tip strong { font-size: 14px; font-variant-numeric: tabular-nums; }
+.body-row { gap: 12px; }
+.body-row-date { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; }
+.body-row-vals { display: flex; gap: 10px; flex-wrap: wrap; font-size: 13px; font-variant-numeric: tabular-nums; }
+.body-row .icon { flex: none; }
+
 /* ---------- ダイアログ・シート ---------- */
 .overlay {
   position: fixed;

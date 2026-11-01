@@ -9,6 +9,7 @@ import * as compare from './views/compare.js';
 import * as tags from './views/tags.js';
 import * as settings from './views/settings.js';
 import * as camera from './views/camera.js';
+import * as body from './views/body.js';
 
 // #/            一覧
 // #/photo/<id>  写真の詳細
@@ -18,7 +19,8 @@ import * as camera from './views/camera.js';
 // #/camera      アプリ内カメラ(撮影ガイド付き)
 // #/tags        タグ管理
 // #/settings    設定・バックアップ
-const views = { '': list, photo, add: editor, edit: editor, compare, tags, settings, camera };
+// #/body        体重・体脂肪率・筋肉量の記録とグラフ
+const views = { '': list, photo, add: editor, edit: editor, compare, tags, settings, camera, body };
 
 const root = document.getElementById('app');
 let cleanup = null;

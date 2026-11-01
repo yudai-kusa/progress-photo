@@ -1,10 +1,10 @@
 // バックアップ(ZIP)の書き出しと読み込み
-//   data.json      … タグと写真のメタ情報
+//   data.json      … タグと写真のメタ情報、体組成の記録
 //   photos/<id>.jpg … 写真本体
 //   thumbs/<id>.jpg … サムネイル
 // 写真は既に JPEG なので圧縮せず「無圧縮 ZIP」で格納する(ライブラリ不要)
 import * as db from './db.js';
-import { state, reload, getImageBlob } from './store.js';
+import { state, reload, getImageBlob, BODY_METRICS } from './store.js';
 import { processImage } from './image.js';
 import { isYmd, uid } from './util.js';
 
@@ -19,6 +19,7 @@ export async function createBackup(onProgress) {
     exportedAt: new Date().toISOString(),
     tags: state.tags,
     photos: photos.map(({ thumb, ...meta }) => meta),
+    body: state.body,
   };
   const files = [{ name: 'data.json', blob: new Blob([JSON.stringify(data)], { type: 'application/json' }) }];
   for (const p of photos) {
@@ -55,8 +56,8 @@ export async function inspectBackup(file) {
 // mode: 'merge'(今のデータに追加) | 'replace'(全部置き換え)
 export async function restoreBackup({ zip, prefix, data }, mode, onProgress) {
   if (mode === 'replace') {
-    await db.write(['photos', 'images', 'tags'], (tx) => {
-      ['photos', 'images', 'tags'].forEach((s) => tx.objectStore(s).clear());
+    await db.write(['photos', 'images', 'tags', 'body'], (tx) => {
+      ['photos', 'images', 'tags', 'body'].forEach((s) => tx.objectStore(s).clear());
     });
     await reload();
   }
@@ -84,9 +85,19 @@ export async function restoreBackup({ zip, prefix, data }, mode, onProgress) {
   }
   if (newTags.length) await db.write(['tags'], (tx) => newTags.forEach((t) => tx.objectStore('tags').put(t)));
 
+  // 体組成: 同じ日付の記録が既にあれば今のデータを残す(古いバックアップには無い)
+  const result = { added: 0, skipped: 0, failed: 0, bodyAdded: 0 };
+  const haveDates = new Set(state.body.map((r) => r.date));
+  const bodyRecords = (Array.isArray(data.body) ? data.body : [])
+    .map(cleanBody)
+    .filter((r) => r && !haveDates.has(r.date));
+  if (bodyRecords.length) {
+    await db.write(['body'], (tx) => bodyRecords.forEach((r) => tx.objectStore('body').put(r)));
+    result.bodyAdded = bodyRecords.length;
+  }
+
   // 写真: 既にある ID はスキップ
   const have = new Set(state.photos.map((p) => p.id));
-  const result = { added: 0, skipped: 0, failed: 0 };
   const total = data.photos.length;
   for (let i = 0; i < total; i++) {
     onProgress?.(i + 1, total);
@@ -128,6 +139,18 @@ export async function restoreBackup({ zip, prefix, data }, mode, onProgress) {
   }
   await reload();
   return result;
+}
+
+function cleanBody(r) {
+  if (!r || !isYmd(r.date)) return null;
+  const out = { date: r.date, updatedAt: Number.isFinite(r.updatedAt) ? r.updatedAt : Date.now() };
+  let any = false;
+  for (const { key } of BODY_METRICS) {
+    const v = Number.isFinite(r[key]) ? r[key] : null;
+    out[key] = v;
+    if (v != null) any = true;
+  }
+  return any ? out : null;
 }
 
 /* ---------- ZIP(無圧縮)の書き出し ---------- */

@@ -95,6 +95,7 @@ export function render(root) {
     h('header', { class: 'topbar' },
       h('h1', {}, '進捗フォト'),
       h('div', { class: 'topbar-actions' },
+        iconButton('chart', '体重・体組成', () => navigate('#/body')),
         iconButton('tag', 'タグ管理', () => navigate('#/tags')),
         iconButton('settings', '設定・バックアップ', () => navigate('#/settings')))),
     banners,
@@ -137,7 +138,7 @@ async function drawBanners(box) {
       'Safari の共有ボタン → 「ホーム画面に追加」。Safari とホーム画面のアプリでは保存場所が別なので、写真はホーム画面のアプリで追加してください。',
       () => savePref('hideInstallTip', true)));
   }
-  if (state.photos.length) {
+  if (state.photos.length || state.body.length) {
     const last = await getMeta('lastBackupAt');
     const days = last ? daysBetween(ymd(new Date(last)), ymd()) : null;
     const snoozed = loadPref('backupSnoozeUntil', 0) > Date.now();
