@@ -7,6 +7,7 @@ import { ymd, isYmd, formatDate, daysBetween, loadPref, savePref } from '../util
 import { topbar } from './common.js';
 
 const PERIODS = [
+  { key: '1w', label: '1週間', days: 7 },
   { key: '1m', label: '1ヶ月', days: 31 },
   { key: '3m', label: '3ヶ月', days: 92 },
   { key: '1y', label: '1年', days: 366 },
@@ -15,6 +16,7 @@ const PERIODS = [
 
 const metricOf = (key) => BODY_METRICS.find((m) => m.key === key) ?? BODY_METRICS[0];
 const fmt = (v) => (v == null ? '-' : v.toFixed(1));
+const AVG_DAYS = 7;
 
 // 全角数字・全角ピリオド・カンマも受け付ける。空欄は null、不正なら NaN
 function parseValue(s) {
@@ -30,6 +32,7 @@ export function render(root) {
   let metric = metricOf(loadPref('bodyMetric', 'weight')).key;
   let period = loadPref('bodyPeriod', '3m');
   if (!PERIODS.some((p) => p.key === period)) period = '3m';
+  let showAvg = loadPref('bodyShowAvg', false);
 
   /* ---------- 入力フォーム ---------- */
   const dateInput = h('input', { class: 'input', type: 'date', value: ymd(), max: ymd(), required: true });
@@ -99,7 +102,8 @@ export function render(root) {
   /* ---------- グラフ ---------- */
   const tabs = h('div', { class: 'tabs tabs-3', role: 'tablist' });
   const summary = h('div', { class: 'body-summary' });
-  const periodChips = h('div', { class: 'chips' });
+  const periodChips = h('div', { class: 'tabs tabs-5', role: 'tablist', 'aria-label': '期間' });
+  const avgToggle = h('label', { class: 'switch' });
   const chartBox = h('div', { class: 'chart' });
   const historyList = h('ul', { class: 'tag-list body-history' });
 
@@ -112,21 +116,39 @@ export function render(root) {
     }, m.label)));
     periodChips.replaceChildren(...PERIODS.map((p) => h('button', {
       type: 'button',
-      class: 'chip small' + (p.key === period ? ' on' : ''),
-      'aria-pressed': String(p.key === period),
+      class: 'tab' + (p.key === period ? ' on' : ''),
+      role: 'tab',
+      'aria-selected': String(p.key === period),
       onclick: () => { period = p.key; savePref('bodyPeriod', period); drawAll(); },
     }, p.label)));
+    avgToggle.replaceChildren(
+      h('input', {
+        type: 'checkbox',
+        checked: showAvg,
+        onchange: (e) => { showAvg = e.target.checked; savePref('bodyShowAvg', showAvg); drawChart(); },
+      }),
+      h('span', { class: 'switch-track', 'aria-hidden': 'true' }),
+      `${AVG_DAYS}日平均を重ねる`);
   };
 
-  // 選んだ項目・期間の点(古い順)
+  // 選んだ項目・期間の点(古い順)。avg はその日を含む直近7日間(暦日)の記録の平均。
+  // 期間の始めでも正しい平均になるよう、期間外の記録も使って計算する
   const points = () => {
     const all = sortedBody().filter((r) => r[metric] != null);
     if (!all.length) return [];
     const days = PERIODS.find((p) => p.key === period).days;
     const end = all[all.length - 1].date;
-    return all
-      .filter((r) => daysBetween(r.date, end) < days)
-      .map((r) => ({ date: r.date, value: r[metric] }));
+    const out = [];
+    let from = 0;
+    let sum = 0;
+    all.forEach((r, i) => {
+      sum += r[metric];
+      while (daysBetween(all[from].date, r.date) >= AVG_DAYS) sum -= all[from++][metric];
+      if (daysBetween(r.date, end) < days) {
+        out.push({ date: r.date, value: r[metric], avg: Math.round((sum / (i - from + 1)) * 100) / 100 });
+      }
+    });
+    return out;
   };
 
   const drawSummary = (pts) => {
@@ -157,7 +179,7 @@ export function render(root) {
         state.body.length ? `${metricOf(metric).label}の記録はまだありません` : 'まだ記録がありません。上のフォームから記録するとグラフが表示されます。'));
       return;
     }
-    chartBox.replaceChildren(lineChart(pts, metricOf(metric), chartBox.clientWidth || 320));
+    chartBox.replaceChildren(lineChart(pts, metricOf(metric), chartBox.clientWidth || 320, { showAvg }));
   };
 
   let historyLimit = 20;
@@ -215,7 +237,8 @@ export function render(root) {
         tabs,
         summary,
         chartBox,
-        periodChips),
+        periodChips,
+        avgToggle),
       h('section', { class: 'stack' },
         h('div', { class: 'section-head' }, h('h2', {}, '記録一覧'), h('span', { class: 'muted small' }, 'タップで編集')),
         historyList)),
@@ -271,7 +294,7 @@ function xTicks(start, end) {
   const out = [];
   if (span <= 45) {
     // 1週間ごと(またはそれより細かく)
-    const step = span <= 10 ? 2 : 7;
+    const step = span <= 7 ? 1 : span <= 14 ? 2 : 7;
     for (let d = start; d <= end; d += step) out.push({ at: d, label: fromDayNum(d).slice(5).replace('-', '/').replace(/^0/, '') });
     return out;
   }
@@ -295,13 +318,13 @@ function xTicks(start, end) {
   return out;
 }
 
-function lineChart(pts, metric, width) {
+function lineChart(pts, metric, width, { showAvg = false } = {}) {
   const height = 220;
   const pad = { top: 14, right: 14, bottom: 26, left: 40 };
   const innerW = Math.max(40, width - pad.left - pad.right);
   const innerH = height - pad.top - pad.bottom;
 
-  const values = pts.map((p) => p.value);
+  const values = pts.map((p) => p.value).concat(showAvg ? pts.map((p) => p.avg) : []);
   const { ticks, lo, hi } = niceTicks(Math.min(...values), Math.max(...values));
   let x0 = dayNum(pts[0].date);
   let x1 = dayNum(pts[pts.length - 1].date);
@@ -314,7 +337,7 @@ function lineChart(pts, metric, width) {
   const y = (v) => pad.top + (1 - (v - lo) / (hi - lo)) * innerH;
 
   const svg = s('svg', {
-    class: 'chart-svg',
+    class: 'chart-svg' + (showAvg ? ' with-avg' : ''),
     viewBox: `0 0 ${width} ${height}`,
     width,
     height,
@@ -330,7 +353,9 @@ function lineChart(pts, metric, width) {
         document.createTextNode(Number.isInteger(t) ? String(t) : t.toFixed(1))));
   }
   for (const t of xTicks(x0, x1)) {
-    svg.append(s('text', { class: 'chart-axis', x: xn(t.at), y: height - 6, 'text-anchor': 'middle' }, document.createTextNode(t.label)));
+    const tx = xn(t.at);
+    // 右端の日付が切れないよう、少し内側に寄せる
+    svg.append(s('text', { class: 'chart-axis', x: Math.min(tx, width - 17), y: height - 6, 'text-anchor': 'middle' }, document.createTextNode(t.label)));
   }
 
   // 線と点
@@ -340,6 +365,10 @@ function lineChart(pts, metric, width) {
   pts.forEach((p, i) => {
     if (showDots || i === pts.length - 1) svg.append(s('circle', { class: 'chart-dot', cx: x(p.date), cy: y(p.value), r: 4 }));
   });
+  if (showAvg) {
+    const da = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.date).toFixed(1)},${y(p.avg).toFixed(1)}`).join('');
+    svg.append(s('path', { class: 'chart-avg', d: da }));
+  }
 
   // なぞると値を表示(十字線 + ツールチップ)
   const cross = s('line', { class: 'chart-cross', y1: pad.top, y2: pad.top + innerH, visibility: 'hidden' });
@@ -360,11 +389,16 @@ function lineChart(pts, metric, width) {
     focus.setAttribute('cx', cx);
     focus.setAttribute('cy', cy);
     focus.setAttribute('visibility', 'visible');
-    tip.replaceChildren(h('span', { class: 'muted' }, formatDate(best.date)), h('strong', {}, `${fmt(best.value)}${metric.unit}`));
+    tip.replaceChildren(
+      h('span', { class: 'muted' }, formatDate(best.date)),
+      h('strong', {}, `${fmt(best.value)}${metric.unit}`),
+      showAvg ? h('span', { class: 'chart-tip-avg' }, `${AVG_DAYS}日平均 ${fmt(best.avg)}${metric.unit}`) : null);
     tip.hidden = false;
     const tw = tip.offsetWidth;
     tip.style.left = `${Math.min(Math.max(0, cx - tw / 2), width - tw)}px`;
-    tip.style.top = `${Math.max(0, cy - 44)}px`;
+    // 点の上に出す。上に入らなければ点の下に出す
+    const th = tip.offsetHeight;
+    tip.style.top = `${cy - th - 12 >= 0 ? cy - th - 12 : cy + 12}px`;
   };
   const hide = () => {
     cross.setAttribute('visibility', 'hidden');
@@ -375,5 +409,11 @@ function lineChart(pts, metric, width) {
   svg.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' || e.buttons) show(e.clientX); });
   svg.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hide(); });
 
-  return h('div', { class: 'chart-wrap' }, svg, tip);
+  // 2本のときは凡例を出す(色だけに頼らない)
+  const legend = showAvg
+    ? h('div', { class: 'chart-legend' },
+      h('span', {}, h('i', { class: 'lg-raw' }), '記録'),
+      h('span', {}, h('i', { class: 'lg-avg' }), `${AVG_DAYS}日平均`))
+    : null;
+  return h('div', {}, legend, h('div', { class: 'chart-wrap' }, svg, tip));
 }
