@@ -15,6 +15,7 @@ export const TAG_TYPES = [
 export const state = {
   tags: [],
   photos: [], // { id, date, partTagIds[], poseTagId, thumb(Blob), width, height, createdAt }
+  body: [], // { date, weight, bodyFat, muscle, updatedAt }(値は数値か null)
   filter: loadPref('filter', { parts: [], poses: [], order: 'desc' }),
   draft: null, // 追加・編集画面の入力途中の内容
 };
@@ -56,6 +57,7 @@ export async function reload() {
   thumbURLs.clear();
   state.tags = await db.getAll('tags');
   state.photos = await db.getAll('photos');
+  state.body = await db.getAll('body');
 }
 
 /* ---------- 設定値 ---------- */
@@ -201,4 +203,34 @@ export function thumbURL(photo) {
     thumbURLs.set(photo.id, url);
   }
   return url;
+}
+
+/* ---------- 体組成(体重・体脂肪率・筋肉量) ---------- */
+
+export const BODY_METRICS = [
+  { key: 'weight', label: '体重', unit: 'kg', min: 20, max: 300 },
+  { key: 'bodyFat', label: '体脂肪率', unit: '%', min: 1, max: 80 },
+  { key: 'muscle', label: '筋肉量', unit: 'kg', min: 5, max: 200 },
+];
+
+// 日付順(古い順)
+export function sortedBody() {
+  return [...state.body].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
+
+export function getBody(date) {
+  return state.body.find((r) => r.date === date) ?? null;
+}
+
+// 同じ日の記録があれば上書きする
+export async function saveBody(record) {
+  const r = { ...record, updatedAt: Date.now() };
+  await db.write(['body'], (tx) => tx.objectStore('body').put(r));
+  state.body = [...state.body.filter((x) => x.date !== r.date), r];
+  return r;
+}
+
+export async function deleteBody(date) {
+  await db.write(['body'], (tx) => tx.objectStore('body').delete(date));
+  state.body = state.body.filter((x) => x.date !== date);
 }

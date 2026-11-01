@@ -3,9 +3,10 @@
 //   images: 表示用の大きい画像(必要なときだけ1枚ずつ読む)
 //   tags  : 部位・ポーズのタグ
 //   meta  : 設定値(最終バックアップ日時など)
+//   body  : 体重・体脂肪率・筋肉量(1日1件、日付がキー)
 const DB_NAME = 'progress-photo';
-const DB_VERSION = 1;
-export const STORES = ['photos', 'images', 'tags', 'meta'];
+const DB_VERSION = 2;
+export const STORES = ['photos', 'images', 'tags', 'meta', 'body'];
 
 let dbPromise;
 
@@ -18,6 +19,7 @@ export function openDB() {
       if (!db.objectStoreNames.contains('images')) db.createObjectStore('images', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('tags')) db.createObjectStore('tags', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
+      if (!db.objectStoreNames.contains('body')) db.createObjectStore('body', { keyPath: 'date' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);

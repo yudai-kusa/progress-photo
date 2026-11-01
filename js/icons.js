@@ -19,6 +19,7 @@ const P = {
   layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
   timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',
   switchCam: '<path d="M3 8h4l2-3h6l2 3h4v11H3z"/><path d="M9 12.5a3 3 0 0 1 5.2-1.8M15 13.5a3 3 0 0 1-5.2 1.8"/><path d="M14.5 9v2h-2M9.5 17v-2h2"/>',
+  chart: '<path d="M4 4v16h16"/><path d="M7 15l4-4 3 3 5-6"/>',
   download: '<path d="M12 4v12M7 11l5 5 5-5M5 20h14"/>',
 };
 
