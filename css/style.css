@@ -707,3 +707,21 @@ input[type="date"].input { -webkit-appearance: none; appearance: none; }
 
 .fatal { padding: 48px 24px; display: grid; gap: 12px; }
 .fatal h1 { font-size: 20px; }
+
+/* ---------- 更新のお知らせ ---------- */
+.update-bar {
+  position: fixed;
+  left: 50%;
+  top: calc(var(--safe-top) + 10px);
+  z-index: 60;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .45);
+}

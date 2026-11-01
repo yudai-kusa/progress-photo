@@ -55,6 +55,27 @@ async function start() {
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+  // 新しい版が有効になったら読み込み直して反映する(初回インストール時は除く)。
+  // 入力中・撮影中などは邪魔しないよう、再読み込みのボタンを出すだけにする
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    const view = location.hash.replace(/^#\/?/, '').split('/')[0];
+    const busy = ['add', 'edit', 'camera'].includes(view) ||
+      document.querySelector('.overlay') ||
+      document.activeElement?.matches?.('input, textarea, select');
+    if (!busy) {
+      reloading = true;
+      location.reload();
+      return;
+    }
+    document.querySelector('.update-bar')?.remove();
+    document.body.append(h('button', {
+      class: 'update-bar',
+      onclick: () => { reloading = true; location.reload(); },
+    }, '新しいバージョンがあります。タップして更新'));
+  });
 }
 
 // 端末のブラウザにデータを自動削除されにくくする(対応ブラウザのみ)
