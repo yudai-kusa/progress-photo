@@ -572,6 +572,8 @@ input[type="date"].input { -webkit-appearance: none; appearance: none; }
 .body-latest { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
 .body-unit { margin-left: 3px; font-size: 15px; font-weight: 600; color: var(--muted); }
 .body-diff { color: var(--text); font-variant-numeric: tabular-nums; }
+.body-period-avg { flex-basis: 100%; }
+.body-period-avg strong { color: var(--text); font-variant-numeric: tabular-nums; }
 .chart { min-width: 0; touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: grab; }
 .chart.dragging { cursor: grabbing; }
 .chart-none { font-size: 13px; }
