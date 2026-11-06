@@ -172,6 +172,8 @@ export function render(root) {
     const last = pts[pts.length - 1];
     const first = pts[0];
     const diff = Math.round((last.value - first.value) * 10) / 10;
+    const avg = pts.reduce((a, p) => a + p.value, 0) / pts.length;
+    const label = PERIODS.find((p) => p.key === period).label;
     summary.replaceChildren(
       h('div', {},
         h('span', { class: 'body-latest' }, fmt(last.value)),
@@ -180,7 +182,10 @@ export function render(root) {
       pts.length > 1
         ? h('div', { class: 'muted small' }, `${formatDate(first.date)} から `,
           h('strong', { class: 'body-diff' }, `${diff > 0 ? '+' : diff < 0 ? '−' : '±'}${Math.abs(diff).toFixed(1)}${m.unit}`))
-        : null);
+        : null,
+      h('div', { class: 'muted small body-period-avg' }, `${label}の平均 `,
+        h('strong', {}, `${fmt(avg)}${m.unit}`),
+        ` (${pts.length}件)`));
   };
 
   const nav = h('div', { class: 'chart-nav' });
